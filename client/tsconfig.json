@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "target": "es2020",
+    "types": [
+      "@koishijs/client/global"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "."
+  ]
+}

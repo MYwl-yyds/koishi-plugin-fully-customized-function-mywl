@@ -1,0 +1,51 @@
+{
+  "name": "koishi-plugin-fully-customized-function-mywl",
+  "description": "[插件由AI生成]全自定义功能自动化：可视化磁贴编排任务（OneBot v11 接口 / Koishi 状态 / 条件判断 / 循环 / 变量 / JSON·XML / 随机数 / 时间 / 字符串 / 数组），支持 LLOneBot/NapCat 框架适配与调试日志，WebUI 拖拽管理",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "onebot",
+    "qq",
+    "自动化",
+    "可视化编排"
+  ],
+  "koishi": {
+    "description": {
+      "zh": "[插件由AI生成]全自定义功能自动化：可视化「磁贴」编排面板，将 OneBot v11 内置接口（发消息、撤回、踢人、禁言、群信息等）、Koishi 状态与代码工具磁贴（JSON/XML、随机数、时间日期、字符串加密、数组操作）自由拖拽组合为任务流程；支持拖拽添加子磁贴、条件判断取值字段（JSON 路径）、LLOneBot/NapCat 框架适配、调试日志开关，带执行日志面板。",
+      "en": "[插件由AI生成]Fully customized function automation for OneBot v11 with visual tile-based workflow editor, covering Koishi status, JSON/XML tools, randomness, time, string hashing and array operations, with OneBot framework adaptation (LLOneBot/NapCat) and debug logging."
+    },
+    "service": {
+      "required": [
+        "database"
+      ],
+      "optional": [
+        "console"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "koishi": "^4.18.0",
+    "@koishijs/plugin-console": "^5.28.0"
+  },
+  "devDependencies": {
+    "@koishijs/client": "^5.28.0",
+    "@koishijs/plugin-console": "^5.28.0",
+    "@types/node": "^20.14.0",
+    "koishi": "^4.18.0",
+    "typescript": "^5.5.0",
+    "vue": "^3.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MYwl-yyds/koishi-plugin-fully-customized-function-mywl.git"
+  }
+}
