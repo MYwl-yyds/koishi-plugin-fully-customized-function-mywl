@@ -304,6 +304,11 @@ const palette = computed(() => {
   pushCat('变量与日志')
   pushCat('Koishi 信息')
   pushCat('代码工具')
+  pushCat('网络请求')
+  pushCat('数据库')
+  pushCat('文件操作')
+  pushCat('Koishi 扩展')
+  pushCat('AI 服务')
   return groups
 })
 
@@ -356,7 +361,7 @@ function onTriggerChange() {
 
 // ---------- 磁贴：指针拖拽（鼠标 / 触屏长按 300ms） ----------
 function hasZone(id: string): boolean {
-  return id === 'sys.if' || id === 'sys.loop_count' || id === 'sys.loop_while'
+  return id === 'sys.if' || id === 'sys.loop_count' || id === 'sys.loop_while' || id === 'sys.command'
 }
 
 // 幽灵卡片内容：步骤拖拽显示步骤磁贴名，磁贴拖拽显示磁贴名

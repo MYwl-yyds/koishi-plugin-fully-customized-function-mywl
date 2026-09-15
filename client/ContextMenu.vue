@@ -46,7 +46,7 @@ const currentTile = computed(() => (cur.value ? tileMap.value[cur.value.tile] : 
 const items = computed(() => {
   const s = cur.value
   if (!s) return []
-  const hasZone = s.tile === 'sys.if' || s.tile === 'sys.loop_count' || s.tile === 'sys.loop_while'
+  const hasZone = s.tile === 'sys.if' || s.tile === 'sys.loop_count' || s.tile === 'sys.loop_while' || s.tile === 'sys.command'
   const list: { key: string, label: string, danger?: boolean }[] = []
   list.push({ key: 'toggle', label: s.enabled ? '禁用' : '启用' })
   if (hasZone) list.push({ key: 'collapse', label: '展开 / 折叠子项' })

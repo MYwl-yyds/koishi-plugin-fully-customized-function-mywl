@@ -1,7 +1,10 @@
 // ============ 全自定义功能插件 - 任务执行引擎 ============
-// 按步骤顺序执行，支持 if 分支、for/while 循环、延时、变量、日志与 OneBot 接口调用
+// 按步骤顺序执行，支持 if 分支、for/while 循环、延时、变量、日志、OneBot 接口、数据库、文件、命令注册
 import { Context } from 'koishi'
 import { createHash, randomInt, randomUUID } from 'crypto'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import * as os from 'node:os'
 import { Step, TaskRecord, TileDef } from './types'
 import { TILE_MAP, OP_NEEDS_VALUE } from './tiles'
 import { template, evaluate, evalCondition } from './expr'
@@ -131,6 +134,46 @@ export async function callOneBot(bot: any, action: string, params: Record<string
   throw new Error(oneBotErr(action, framework))
 }
 
+function escapeCq(value: any): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/\[/g, '&#91;')
+    .replace(/\]/g, '&#93;')
+    .replace(/,/g, '&#44;')
+}
+
+function messageForTile(tileId: string, params: Record<string, any>): Record<string, any> {
+  const out = { ...params }
+  const file = escapeCq(params.file)
+  if (tileId === 'ob.send_image_msg') out.message = `[CQ:image,file=${file},cache=${params.cache === false ? 0 : 1}]`
+  else if (tileId === 'ob.send_audio_msg') out.message = `[CQ:record,file=${file},magic=${params.magic === true ? 1 : 0}]`
+  else if (tileId === 'ob.send_file_msg') {
+    out.message = `[CQ:file,file=${file}${params.name ? `,name=${escapeCq(params.name)}` : ''}]`
+  } else if (tileId === 'ob.send_video_msg') {
+    out.message = `[CQ:video,file=${file}${params.cover ? `,cover=${escapeCq(params.cover)}` : ''}]`
+  } else if (tileId === 'ob.send_card_msg') {
+    out.message = `[CQ:json,data=${escapeCq(params.card)}]`
+  }
+  delete out.file
+  delete out.cache
+  delete out.magic
+  delete out.name
+  delete out.cover
+  delete out.card
+  return out
+}
+
+function commandArgs(input: string): string[] {
+  const result: string[] = []
+  const matcher = /(?:[^\s"']+|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')+/g
+  for (const token of input.match(matcher) || []) {
+    const quote = token[0]
+    const value = (quote === '"' || quote === "'") && token.endsWith(quote) ? token.slice(1, -1) : token
+    result.push(value.replace(/\\([\\"'])/g, '$1'))
+  }
+  return result
+}
+
 function toNumber(v: any): number {
   if (typeof v === 'number') return v
   const n = Number(String(v ?? '').trim())
@@ -154,6 +197,14 @@ export function compareValues(value: string, op: string, target: string): boolea
     case 'notEmpty': return v.trim() !== ''
     case 'contains': return v.includes(t)
     case 'notContains': return !v.includes(t)
+    case 'regex':
+    case 'notRegex': {
+      try {
+        const re = new RegExp(t)
+        const ok = re.test(v)
+        return op === 'regex' ? ok : !ok
+      } catch { return false }
+    }
     case '>': return toNumber(v) > toNumber(t)
     case '>=': return toNumber(v) >= toNumber(t)
     case '<': return toNumber(v) < toNumber(t)
@@ -166,7 +217,8 @@ export function compareValues(value: string, op: string, target: string): boolea
 
 const OP_LABELS: Record<string, string> = {
   '==': '等于', '!=': '不等于', '>': '大于', '>=': '大于等于', '<': '小于', '<=': '小于等于',
-  contains: '包含', notContains: '不包含', isEmpty: '为空', notEmpty: '不为空',
+  contains: '包含', notContains: '不包含', regex: '正则匹配', notRegex: '正则不匹配',
+  isEmpty: '为空', notEmpty: '不为空',
 }
 export function opLabel(op: string): string {
   return OP_LABELS[op] || op
@@ -174,6 +226,217 @@ export function opLabel(op: string): string {
 function truncate(s: string, max = 120): string {
   const str = String(s ?? '')
   return str.length > max ? str.slice(0, max) + '…' : str
+}
+
+const MAX_HTTP_RESPONSE_BYTES = 4 * 1024 * 1024
+
+function parseJsonObject(value: any, label: string): Record<string, any> {
+  if (value === undefined || value === null || String(value).trim() === '') return {}
+  let parsed: any
+  try { parsed = typeof value === 'object' ? value : JSON.parse(String(value)) } catch (e) {
+    throw new Error(`${label} JSON 解析失败：${(e as Error).message}`)
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`${label}必须是 JSON 对象`)
+  return parsed
+}
+
+function parseJsonValue(value: any, label: string): any {
+  try { return typeof value === 'string' ? JSON.parse(value) : value } catch (e) {
+    throw new Error(`${label} JSON 解析失败：${(e as Error).message}`)
+  }
+}
+
+async function readHttpResponse(response: Response): Promise<string> {
+  const length = Number(response.headers.get('content-length') || 0)
+  if (length > MAX_HTTP_RESPONSE_BYTES) throw new Error(`响应体超过 ${MAX_HTTP_RESPONSE_BYTES} 字节限制`)
+  if (!response.body) {
+    const text = await response.text()
+    if (Buffer.byteLength(text, 'utf8') > MAX_HTTP_RESPONSE_BYTES) throw new Error(`响应体超过 ${MAX_HTTP_RESPONSE_BYTES} 字节限制`)
+    return text
+  }
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    while (true) {
+      const part = await reader.read()
+      if (part.done) break
+      total += part.value.byteLength
+      if (total > MAX_HTTP_RESPONSE_BYTES) throw new Error(`响应体超过 ${MAX_HTTP_RESPONSE_BYTES} 字节限制`)
+      chunks.push(part.value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString('utf8')
+}
+
+async function requestHttp(method: 'GET' | 'POST', params: Record<string, any>): Promise<any> {
+  const rawUrl = String(params.url ?? '').trim()
+  let url: URL
+  try { url = new URL(rawUrl) } catch { throw new Error('URL 格式无效') }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('URL 仅允许 http 或 https 协议')
+  const headersJson = parseJsonObject(params.headers, '请求头')
+  const headers: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headersJson)) {
+    if (value !== null && value !== undefined) headers[key] = String(value)
+  }
+  if (method === 'GET') {
+    const query = parseJsonObject(params.query, '查询参数')
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null) continue
+      if (Array.isArray(value)) value.forEach((item) => url.searchParams.append(key, String(item)))
+      else url.searchParams.set(key, String(value))
+    }
+  }
+  const init: RequestInit = { method, headers }
+  if (method === 'POST') {
+    const bodyType = String(params.bodyType || 'json')
+    const body = String(params.body ?? '')
+    if (bodyType === 'json') {
+      const parsed = parseJsonValue(body, 'JSON 请求体')
+      init.body = JSON.stringify(parsed)
+      if (!Object.keys(headers).some((key) => key.toLowerCase() === 'content-type')) headers['Content-Type'] = 'application/json'
+    } else if (bodyType === 'form') {
+      const form = parseJsonObject(body, '表单请求体')
+      init.body = new URLSearchParams(Object.entries(form).reduce<Record<string, string>>((out, [key, value]) => {
+        out[key] = value === null || value === undefined ? '' : String(value)
+        return out
+      }, {})).toString()
+      if (!Object.keys(headers).some((key) => key.toLowerCase() === 'content-type')) headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    } else {
+      init.body = body
+      if (!Object.keys(headers).some((key) => key.toLowerCase() === 'content-type')) headers['Content-Type'] = 'text/plain;charset=UTF-8'
+    }
+  }
+  const response = await fetch(url, init)
+  const text = await readHttpResponse(response)
+  if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}${text ? `：${truncate(text)}` : ''}`)
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.toLowerCase().includes('json')) {
+    try { return JSON.parse(text) } catch { return text }
+  }
+  return text
+}
+
+async function requestAiOcr(params: Record<string, any>): Promise<Record<string, any>> {
+  const endpoint = String(params.aiEndpoint || '').trim()
+  const apiKey = String(params.aiApiKey || '').trim()
+  const model = String(params.aiModel || '').trim()
+  const image = String(params.image || '').trim()
+  const prompt = String(params.aiPrompt || '').trim()
+  if (!endpoint || !apiKey || !model || !image) throw new Error('AI OCR 兜底需要填写服务地址、API 密钥、视觉模型名和图片 URL')
+  let endpointUrl: URL
+  let imageUrl: URL
+  try { endpointUrl = new URL(endpoint) } catch { throw new Error('AI OCR 服务地址格式无效') }
+  try { imageUrl = new URL(image) } catch { throw new Error('AI OCR 兜底仅支持公开可访问的 http/https 图片 URL') }
+  if (!['http:', 'https:'].includes(endpointUrl.protocol) || !['http:', 'https:'].includes(imageUrl.protocol)) throw new Error('AI OCR 服务地址和图片 URL 仅允许 http 或 https 协议')
+  const response = await fetch(endpointUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: prompt || '请识别图片中的全部可见文字，按原有阅读顺序输出纯文本。' },
+        { type: 'image_url', image_url: { url: imageUrl.href } },
+      ] }],
+      temperature: 0,
+    }),
+  })
+  const text = await readHttpResponse(response)
+  if (!response.ok) throw new Error(`AI OCR 服务响应失败：HTTP ${response.status} ${response.statusText}`)
+  let raw: any
+  try { raw = JSON.parse(text) } catch { throw new Error('AI OCR 服务未返回合法 JSON') }
+  const content = raw?.choices?.[0]?.message?.content
+  if (typeof content !== 'string' || !content.trim()) throw new Error('AI OCR 服务响应中缺少识别文本')
+  return {
+    texts: [{ text: content.trim(), confidence: null, coordinates: [] }],
+    language: 'ai-vision',
+    source: 'ai-fallback',
+    model: String(raw?.model || model),
+    usage: raw?.usage || {},
+    raw,
+  }
+}
+
+async function requestAiChat(params: Record<string, any>): Promise<Record<string, any>> {
+  const endpoint = String(params.endpoint || '').trim()
+  const apiKey = String(params.apiKey || '').trim()
+  const model = String(params.model || '').trim()
+  const prompt = String(params.prompt || '')
+  if (!endpoint || !apiKey || !model || !prompt) throw new Error('AI 服务地址、API 密钥、模型名和用户提示词均不能为空')
+  let url: URL
+  try { url = new URL(endpoint) } catch { throw new Error('AI 服务地址格式无效') }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('AI 服务地址仅允许 http 或 https 协议')
+  const messages: { role: string, content: string }[] = []
+  const system = String(params.system || '').trim()
+  if (system) messages.push({ role: 'system', content: system })
+  messages.push({ role: 'user', content: prompt })
+  const body: Record<string, any> = { model, messages, temperature: Math.max(0, Math.min(2, Number(params.temperature ?? 0.7))) }
+  const maxTokens = Number(params.maxTokens || 0)
+  if (Number.isFinite(maxTokens) && maxTokens > 0) body.max_tokens = Math.min(Math.floor(maxTokens), 32768)
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const text = await readHttpResponse(response)
+  if (!response.ok) throw new Error(`AI 服务响应失败：HTTP ${response.status} ${response.statusText}`)
+  let raw: any
+  try { raw = JSON.parse(text) } catch { throw new Error('AI 服务未返回合法 JSON') }
+  const content = raw?.choices?.[0]?.message?.content
+  if (typeof content !== 'string') throw new Error('AI 服务响应中缺少 choices[0].message.content')
+  return { content, model: String(raw?.model || model), usage: raw?.usage || {}, raw }
+}
+
+// ---------- 数据库 / 文件 磁贴辅助函数 ----------
+// 允许的数据库表名（Koishi 表名通常为 字母/数字/下划线/冒号）
+function assertTableName(table: string): void {
+  if (!table) throw new Error('表名为空')
+  if (!/^[A-Za-z_][A-Za-z0-9_:]*$/.test(table)) throw new Error(`非法表名：${table}`)
+}
+
+// 解析磁贴中 JSON 文本参数（空串按空对象处理）；已是对象/数组则直接使用
+function parseJsonArg(value: any, label: string): any {
+  if (value === undefined || value === null) return {}
+  if (typeof value !== 'string') return value
+  const s = value.trim()
+  if (!s) return {}
+  try { return JSON.parse(s) } catch (e) { throw new Error(`${label} JSON 解析失败：${(e as Error).message}`) }
+}
+
+// 文件基础目录：选定后自动创建
+async function fsBaseDir(ctx: Context, base: string): Promise<string> {
+  const root = base === 'data'
+    ? path.join(ctx.baseDir, 'data')
+    : base === 'temp'
+      ? path.join(os.tmpdir(), 'fully-customized-function-mywl')
+      : path.join(ctx.baseDir, 'data', 'fully-customized-function-mywl')
+  await fs.mkdir(root, { recursive: true })
+  return root
+}
+
+// 相对路径解析到基础目录内，禁止越界（防 ../ 逃逸）
+function resolveInside(baseDir: string, rel: string): string {
+  const target = path.resolve(baseDir, rel || '.')
+  const base = path.resolve(baseDir)
+  if (target !== base && !target.startsWith(base + path.sep)) {
+    throw new Error(`路径越界：${rel} 不在基础目录内（禁止通过 .. 跳出）`)
+  }
+  return target
+}
+
+// ---------- Koishi 自定义命令注册 ----------
+interface RegisteredCommand { ctx: Context, name: string }
+const registeredCommands: RegisteredCommand[] = []
+export function disposeRegisteredCommands(ctx: Context): void {
+  for (let i = registeredCommands.length - 1; i >= 0; i--) {
+    const rc = registeredCommands[i]
+    if (rc.ctx === ctx) {
+      try { (ctx as any).removeCommand?.(rc.name) } catch { /* 忽略移除失败 */ }
+      registeredCommands.splice(i, 1)
+    }
+  }
 }
 
 // ---------- 工具磁贴辅助函数 ----------
@@ -292,6 +555,24 @@ export class Runner {
       taskId: String(task.id),
       lastResult: '',
       ...(options.vars || {}),
+    }
+  }
+
+  // 供命令回调等场景复用：在独立变量上下文中执行一组步骤，结束后恢复原变量
+  async runStepList(steps: Step[], extraVars?: Record<string, any>): Promise<void> {
+    const keys = Object.keys(extraVars || {})
+    const prev: Record<string, any> = {}
+    for (const k of keys) {
+      prev[k] = this.vars[k]
+      this.vars[k] = extraVars![k]
+    }
+    try {
+      await this.runList(steps)
+    } finally {
+      for (const k of keys) {
+        if (prev[k] === undefined) delete this.vars[k]
+        else this.vars[k] = prev[k]
+      }
     }
   }
 
@@ -557,7 +838,14 @@ export class Runner {
         return
       }
 
-      // ---------- 代码工具 ----------
+      case 'sys.http_get':
+      case 'sys.http_post': {
+        const result = await requestHttp(tile.id === 'sys.http_get' ? 'GET' : 'POST', p)
+        this.saveResult(step, result)
+        this.log('info', `[${tile.label}] 返回 ${typeof result === 'object' ? JSON.stringify(result) : String(result)}`)
+        return
+      }
+
       case 'sys.json_tool': {
         const mode = String(step.params?.mode || 'parse')
         const input = String(step.params?.input ?? '')
@@ -700,6 +988,183 @@ export class Runner {
         return
       }
 
+      // ---------- 数据库 ----------
+      case 'sys.db_tool': {
+        const op = String(p.op || 'query')
+        const table = String(p.table || '').trim()
+        assertTableName(table)
+        const db: any = this.ctx.database
+        const where = parseJsonArg(p.where, '条件')
+        const data = parseJsonArg(p.data, '数据')
+        let result: any
+        try {
+          if (op === 'create') {
+            const rec = await db.create(table, data && typeof data === 'object' && !Array.isArray(data) ? data : {})
+            result = { _inserted: rec || null }
+          } else if (op === 'update') {
+            const ok = await db.set(table, where, data && typeof data === 'object' && !Array.isArray(data) ? data : {})
+            result = { _updated: !!ok }
+          } else if (op === 'delete') {
+            const n = await db.remove(table, where)
+            result = { _count: n === undefined ? 0 : Number(n) }
+          } else {
+            const limit = Math.min(Math.max(1, Number(p.limit) || 50), 1000)
+            result = await db.get(table, where, { limit })
+          }
+        } catch (e) {
+          this.log('error', `[数据库操作] ${op} ${table} 失败：${(e as Error).message}`)
+          throw new Error(`数据库操作失败：${(e as Error).message}`)
+        }
+        this.saveResult(step, result)
+        this.log('info', `[数据库操作] ${op} ${table} 条件 ${JSON.stringify(where)} => ${typeof result === 'object' ? JSON.stringify(result) : String(result)}`)
+        return
+      }
+
+      // ---------- 文件操作 ----------
+      case 'sys.fs_write': {
+        const baseDir = await fsBaseDir(this.ctx, String(p.base || 'plugin'))
+        const abs = resolveInside(baseDir, String(p.path || ''))
+        const content = String(p.content ?? '')
+        try {
+          if (p.mode === 'append') await fs.appendFile(abs, content, 'utf8')
+          else await fs.writeFile(abs, content, 'utf8')
+        } catch (e) {
+          this.log('error', `[写入文件] ${abs} 失败：${(e as Error).message}`)
+          throw new Error(`写入文件失败：${(e as Error).message}`)
+        }
+        this.saveResult(step, { path: abs, bytes: Buffer.byteLength(content, 'utf8') })
+        this.log('info', `[写入文件] ${abs}（${p.mode === 'append' ? '追加' : '覆盖'} ${Buffer.byteLength(content, 'utf8')} 字节）`)
+        return
+      }
+      case 'sys.fs_read': {
+        const baseDir = await fsBaseDir(this.ctx, String(p.base || 'plugin'))
+        const abs = resolveInside(baseDir, String(p.path || ''))
+        const buf = await fs.readFile(abs)
+        if (buf.byteLength > MAX_HTTP_RESPONSE_BYTES) throw new Error(`文件超过 ${MAX_HTTP_RESPONSE_BYTES} 字节限制`)
+        const text = buf.toString('utf8')
+        this.saveResult(step, text)
+        this.log('info', `[读取文件] ${abs} => ${truncate(text)}`)
+        return
+      }
+      case 'sys.fs_delete': {
+        const baseDir = await fsBaseDir(this.ctx, String(p.base || 'plugin'))
+        const abs = resolveInside(baseDir, String(p.path || ''))
+        try {
+          await fs.unlink(abs)
+        } catch (e) {
+          const err = e as NodeJS.ErrnoException
+          if (err.code === 'ENOENT' && p.ignoreMissing) {
+            this.saveResult(step, { deleted: false, reason: '文件不存在（已忽略）' })
+            this.log('info', `[删除文件] ${abs} 不存在，已忽略`)
+            return
+          }
+          throw new Error(`删除文件失败：${(e as Error).message}`)
+        }
+        this.saveResult(step, { deleted: true, path: abs })
+        this.log('info', `[删除文件] ${abs}`)
+        return
+      }
+      case 'sys.fs_mkdir': {
+        const baseDir = await fsBaseDir(this.ctx, String(p.base || 'plugin'))
+        const abs = resolveInside(baseDir, String(p.path || ''))
+        await fs.mkdir(abs, { recursive: true })
+        this.saveResult(step, { path: abs })
+        this.log('info', `[创建文件夹] ${abs}`)
+        return
+      }
+      case 'sys.fs_rmdir': {
+        const baseDir = await fsBaseDir(this.ctx, String(p.base || 'plugin'))
+        const abs = resolveInside(baseDir, String(p.path || ''))
+        await fs.rm(abs, { recursive: true, force: true })
+        this.saveResult(step, { path: abs, removed: true })
+        this.log('info', `[删除文件夹] ${abs}`)
+        return
+      }
+      case 'sys.fs_list': {
+        const baseDir = await fsBaseDir(this.ctx, String(p.base || 'plugin'))
+        const abs = resolveInside(baseDir, String(p.path || ''))
+        const items = await fs.readdir(abs, { withFileTypes: true })
+        const list = items.map((it) => ({ name: it.name, type: it.isDirectory() ? 'dir' : it.isFile() ? 'file' : 'other' }))
+        this.saveResult(step, list)
+        this.log('info', `[列出目录] ${abs} => ${list.length} 项`)
+        return
+      }
+
+      // ---------- AI 服务 / Koishi 扩展 ----------
+      case 'sys.ai_chat': {
+        const result = await requestAiChat(p)
+        this.saveResult(step, result)
+        this.log('info', `[AI 对话请求] 模型 ${result.model} 完成：${truncate(result.content)}`)
+        return
+      }
+      case 'sys.command_invoke': {
+        const name = String(p.commandCustom || p.command || '').trim().replace(/^\/+/, '')
+        if (!name || /\s/.test(name)) throw new Error('命令名不能为空且不能包含空格')
+        const session = this.vars._session
+        if (!session) throw new Error('触发已有命令需要消息事件上下文，请将任务触发方式设为事件，或在自定义命令回调中调用')
+        const commander: any = (this.ctx as any).$commander
+        const command = commander?.get?.(name)
+        if (!command || typeof command.execute !== 'function') throw new Error(`未找到可执行的 Koishi 命令：${name}`)
+        const args = commandArgs(String(p.arguments || ''))
+        const argv = { name, args, options: {}, session, command }
+        let result: any
+        try {
+          result = await command.execute(argv)
+        } catch (e) {
+          this.log('error', `[触发已有命令] /${name} 失败：${(e as Error).message}`)
+          throw new Error(`触发命令失败：${(e as Error).message}`)
+        }
+        this.saveResult(step, result)
+        this.log('info', `[触发已有命令] /${name}${args.length ? ` ${args.join(' ')}` : ''} => ${typeof result === 'object' ? JSON.stringify(result) : String(result ?? '')}`)
+        return
+      }
+      case 'sys.command': {
+        const name = String(p.command || '').trim().replace(/^\/+/, '')
+        if (!name) throw new Error('命令名为空')
+        const ctx = this.ctx
+        if (registeredCommands.some((rc) => rc.ctx === ctx && rc.name === name)) {
+          this.log('warn', `[注册命令] /${name} 已注册，跳过重复注册`)
+          return
+        }
+        const description = String(p.description || '').trim()
+        const argType = String(p.argType || 'open')
+        const usage = String(p.usage || '').trim()
+        const aliases = String(p.aliases || '').split(/[,，;；]/).map((a) => a.trim().replace(/^\/+/, '')).filter(Boolean)
+        const children = JSON.parse(JSON.stringify(step.children || [])) as Step[]
+        let def: any
+        try {
+          def = ctx.command(name, description)
+          if (argType === 'declared' && usage) def.usage(`${name} ${usage}`)
+          def.action((session: any) => {
+            const raw = String(session?.content || '')
+            const cmdContent = raw.replace(/^\s*\/*\S+\s*/, '')
+            const args = raw.replace(/^\s*\/*\S+\s*/, '').split(/\s+/).filter(Boolean)
+            const vars: Record<string, any> = {
+              _session: session,
+              cmdName: name,
+              cmdContent,
+              cmdArgs: JSON.stringify(args),
+              content: raw,
+              userId: session?.userId ?? '',
+              groupId: session?.groupId ?? session?.channelId ?? '',
+              nickname: session?.username ?? '',
+              messageId: session?.messageId ?? '',
+            }
+            const runner = new Runner(ctx, this.task, {}, this.framework, this.debug)
+            const log1 = this.ctx.logger('全自定义功能')
+            void runner.runStepList(children, vars).catch((e) => log1.error(this.task.name, `命令 /${name} 执行失败：${(e as Error).message}`))
+            return '已触发 ' + name
+          })
+          for (const a of aliases) def = def.alias(a)
+        } catch (e) {
+          this.log('error', `[注册命令] /${name} 注册失败：${(e as Error).message}`)
+          throw new Error(`命令注册失败：${(e as Error).message}`)
+        }
+        registeredCommands.push({ ctx, name })
+        this.log('info', `[注册命令] /${name} 已注册${aliases.length ? `（别名 ${aliases.map((a) => '/' + a).join('，')}）` : ''}`)
+        return
+      }
+
       default:
         this.log('warn', `未知动作磁贴 ${tile.id}`)
     }
@@ -707,7 +1172,7 @@ export class Runner {
 
   // ---------- OneBot 接口 ----------
   private async runOneBot(tile: TileDef, step: Step): Promise<void> {
-    const p = this.resolveParams(step.params)
+    const p = messageForTile(tile.id, this.resolveParams(step.params))
     const apiParams: Record<string, any> = {}
     for (const key of tile.apiParams || []) {
       const raw = p[key]
@@ -727,7 +1192,14 @@ export class Runner {
       throw new Error('未找到可用的机器人')
     }
     this.log('info', `[${tile.label}] 调用 ${tile.api} ${JSON.stringify(apiParams)}（框架：${frameworkLabel(detectFramework(bot, this.framework))}）`)
-    const result = await callOneBot(bot, tile.api!, apiParams, this.framework)
+    let result: any
+    try {
+      result = await callOneBot(bot, tile.api!, apiParams, this.framework)
+    } catch (error) {
+      if (tile.id !== 'ob.ocr_image' || String(p.aiFallback || 'off') !== 'on') throw error
+      this.log('warn', `[图片OCR] OneBot OCR 失败，改用 AI 视觉兜底：${(error as Error).message}`)
+      result = await requestAiOcr(p)
+    }
     const resultVar = String(p.resultVar || '').trim()
     if (resultVar) {
       this.vars[resultVar] = result === undefined || result === null ? '' : (typeof result === 'object' ? JSON.stringify(result) : String(result))

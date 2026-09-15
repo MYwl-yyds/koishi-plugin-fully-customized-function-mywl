@@ -76,6 +76,7 @@ function minuteKey(d: Date): string {
 function sessionVars(session: Session): Record<string, any> {
   const extra: any = (session as any).extra || {}
   const vars: Record<string, any> = {
+    _session: session,
     userId: String(session.userId ?? extra.user_id ?? extra.operator_id ?? ''),
     nickname: String(session.author?.name ?? extra.nickname ?? ''),
     messageId: String(session.messageId ?? extra.message_id ?? ''),

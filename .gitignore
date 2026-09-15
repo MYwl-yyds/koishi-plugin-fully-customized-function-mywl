@@ -1,5 +1,42 @@
+# === 依赖目录 ===
 node_modules/
-lib/
+
+# === 构建产物（编译后的文件） ===
 dist/
-*.tsbuildinfo
+lib/
+out/
+*.js.map
+*.d.ts.map
+
+# === 日志文件 ===
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === 环境变量和配置文件 ===
+.env
+.env.local
+.env.*.local
+*.local
+
+# === 操作系统生成的文件 ===
 .DS_Store
+Thumbs.db
+
+# === IDE / 编辑器 ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.~lock.*
+
+# === Koishi 运行时生成的文件 ===
+koishi.yml
+koishi.db
+cache/
+
+# === 临时文件 ===
+*.tmp
+*.temp

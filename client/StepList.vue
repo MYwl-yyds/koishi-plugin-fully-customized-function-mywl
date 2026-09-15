@@ -83,7 +83,8 @@
                 :placeholder="p.placeholder"
               />
               <select v-else-if="p.type === 'select'" v-model="s.params[p.key]" class="fc-select">
-                <option v-for="o in p.options" :key="o.value" :value="o.value">{{ o.label }}</option>
+                <option value="">{{ p.dynamicOptions === 'commands' ? '请选择已有命令…' : '请选择…' }}</option>
+                <option v-for="o in paramOptions(p)" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
               <div v-else-if="p.type === 'boolean'" style="display:flex;align-items:center;gap:8px">
                 <div class="fc-switch" :class="{ on: !!s.params[p.key] }" @click="s.params[p.key] = !s.params[p.key]"></div>
@@ -170,9 +171,9 @@
                     </tr>
                     <tr>
                       <td><code>比较运算符（compareOp）</code></td>
-                      <td>被比较值 与 对比值 的判定方式（== != &gt; &gt;= &lt; &lt;= contains / notContains / isEmpty / notEmpty）</td>
+                      <td>被比较值 与 对比值 的判定方式（== != &gt; &gt;= &lt; &lt;= contains / notContains / regex（正则匹配）/ notRegex / isEmpty / notEmpty）</td>
                       <td>下拉</td><td>是</td><td>==</td>
-                      <td><code>contains</code></td>
+                      <td><code>regex</code>（对比值填 <code>^\d{4}$</code>）</td>
                     </tr>
                     <tr>
                       <td><code>对比值（compareValue）</code></td>
@@ -213,6 +214,7 @@
                 :steps="s.conditionSteps || []"
                 :list-path="childPath(listPath, i, 'conditionSteps')"
                 :tiles="tiles"
+                :commands="commands"
                 :task-id="taskId"
                 zone-role="condition"
                 :cond-owner="s"
@@ -234,6 +236,7 @@
                 :steps="s.children || []"
                 :list-path="childPath(listPath, i, 'children')"
                 :tiles="tiles"
+                :commands="commands"
                 :task-id="taskId"
                 zone-role="branch"
                 :path-label="childLabel(s, '成立分支')"
@@ -254,6 +257,7 @@
                 :steps="s.elseChildren || []"
                 :list-path="childPath(listPath, i, 'elseChildren')"
                 :tiles="tiles"
+                :commands="commands"
                 :task-id="taskId"
                 zone-role="branch"
                 :path-label="childLabel(s, '否则分支')"
@@ -275,9 +279,31 @@
               :steps="s.children || []"
               :list-path="childPath(listPath, i, 'children')"
               :tiles="tiles"
+              :commands="commands"
               :task-id="taskId"
               zone-role="branch"
               :path-label="childLabel(s, '循环体')"
+              :depth="depth + 1"
+            />
+          </div>
+          <div v-else-if="s.tile === 'sys.command'" class="fc-zone cmd" :style="zoneStyle">
+            <div class="fc-zone-title">
+              <span>⚡ 命令回调（用户输入该命令时执行）</span>
+              <span class="fc-zone-add">
+                <select class="fc-zone-select" title="选择磁贴后立即添加为步骤" @change="zoneAddEvent($event, s, 'children')">
+                  <option value="" disabled selected hidden>＋ 添加步骤…</option>
+                  <option v-for="t in zoneTileOptions(s, 'children')" :key="t.id" :value="t.id">{{ t.label }}</option>
+                </select>
+              </span>
+            </div>
+            <StepList
+              :steps="s.children || []"
+              :list-path="childPath(listPath, i, 'children')"
+              :tiles="tiles"
+              :commands="commands"
+              :task-id="taskId"
+              zone-role="branch"
+              :path-label="childLabel(s, '命令回调')"
               :depth="depth + 1"
             />
           </div>
@@ -307,6 +333,7 @@ const props = defineProps<{
   steps: Step[]
   listPath: (number | string)[]
   tiles: TileDef[]
+  commands?: { label: string, value: string, description?: string }[]
   taskId?: string
   zoneRole?: 'condition' | 'branch' | 'loop' | null
   condOwner?: Step | null
@@ -375,7 +402,7 @@ const condTiles = computed(() => props.tiles.filter((t) => t.kind === 'onebot' |
 const allTiles = computed(() => props.tiles)
 
 function hasZone(id: string): boolean {
-  return id === 'sys.if' || id === 'sys.loop_count' || id === 'sys.loop_while'
+  return id === 'sys.if' || id === 'sys.loop_count' || id === 'sys.loop_while' || id === 'sys.command'
 }
 function zoneCount(s: Step): number {
   if (s.tile === 'sys.if') {
@@ -389,6 +416,9 @@ function isVarSetTile(s: Step): boolean {
 }
 function baseParams(s: Step): TileDef['params'] {
   return tileInfo(s.tile)?.params || []
+}
+function paramOptions(p: TileDef['params'][number]): { label: string, value: string }[] {
+  return p.dynamicOptions === 'commands' ? (props.commands || []) : (p.options || [])
 }
 
 // ---------- 条件规则摘要 ----------

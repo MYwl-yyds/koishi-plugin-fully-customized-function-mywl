@@ -70,11 +70,12 @@ function zoneCount(s: Step): number {
   return s.children?.length || 0
 }
 function hasZone(s: Step): boolean {
-  return s.tile === 'sys.if' || s.tile === 'sys.loop_count' || s.tile === 'sys.loop_while'
+  return s.tile === 'sys.if' || s.tile === 'sys.loop_count' || s.tile === 'sys.loop_while' || s.tile === 'sys.command'
 }
 function zoneLabel(s: Step): string {
   if (s.tile === 'sys.if') return ['条件规则', '成立', '否则'].join(' / ')
   if (s.tile === 'sys.loop_count' || s.tile === 'sys.loop_while') return '循环体'
+  if (s.tile === 'sys.command') return '命令回调'
   return ''
 }
 function summaryOf(s: Step): string {

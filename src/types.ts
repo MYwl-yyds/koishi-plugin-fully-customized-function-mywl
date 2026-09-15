@@ -53,6 +53,7 @@ export interface TileParam {
   placeholder?: string
   hint?: string
   options?: { label: string, value: string }[]
+  dynamicOptions?: 'commands'
   // number 类型专用
   min?: number
   max?: number
@@ -107,6 +108,7 @@ export interface Snapshot {
   logs: LogRecord[]
   tiles: TileDef[]
   events: { label: string, value: string }[]
+  commands: { label: string, value: string, description?: string }[]
   running: Record<number, boolean>
   stats: {
     totalTasks: number

@@ -72,6 +72,58 @@ const onebotTiles: TileDef[] = [
     { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
     { key: 'message', label: '消息内容', type: 'textarea', required: true, placeholder: '支持 {变量} 与 CQ码' },
   ], '#4f7cff'),
+  onebot('ob.send_image_msg', 'send_msg', '发送图片', CAT_MSG, '向私聊或群聊发送图片；支持本地绝对路径、file URL、HTTP(S) URL 或 base64 图片数据', [
+    { key: 'message_type', label: '消息类型', type: 'select', default: 'group', options: [
+      { label: '私聊', value: 'private' }, { label: '群聊', value: 'group' },
+    ] },
+    { key: 'user_id', label: 'QQ号（私聊时）', type: 'text', placeholder: '支持 {userId}' },
+    { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
+    { key: 'file', label: '图片地址', type: 'textarea', required: true, placeholder: 'https://example.com/image.png、file:///C:/image.png 或 base64://...' },
+    { key: 'cache', label: '使用缓存', type: 'boolean', default: true },
+  ], '#4f7cff'),
+  onebot('ob.send_audio_msg', 'send_msg', '发送音频', CAT_MSG, '向私聊或群聊发送语音/音频；支持本地绝对路径、file URL、HTTP(S) URL 或 base64 音频数据', [
+    { key: 'message_type', label: '消息类型', type: 'select', default: 'group', options: [
+      { label: '私聊', value: 'private' }, { label: '群聊', value: 'group' },
+    ] },
+    { key: 'user_id', label: 'QQ号（私聊时）', type: 'text', placeholder: '支持 {userId}' },
+    { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
+    { key: 'file', label: '音频地址', type: 'textarea', required: true, placeholder: 'https://example.com/audio.mp3、file:///C:/audio.mp3 或 base64://...' },
+    { key: 'magic', label: '变声效果', type: 'boolean', default: false, hint: '由 OneBot 实现决定是否支持' },
+  ], '#4f7cff'),
+  onebot('ob.send_file_msg', 'send_msg', '发送文件', CAT_MSG, '向私聊或群聊发送文件消息；使用 CQ 文件消息段，兼容性由 OneBot 实现决定', [
+    { key: 'message_type', label: '消息类型', type: 'select', default: 'group', options: [
+      { label: '私聊', value: 'private' }, { label: '群聊', value: 'group' },
+    ] },
+    { key: 'user_id', label: 'QQ号（私聊时）', type: 'text', placeholder: '支持 {userId}' },
+    { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
+    { key: 'file', label: '文件地址', type: 'textarea', required: true, placeholder: '本地绝对路径、file URL 或 HTTP(S) URL' },
+    { key: 'name', label: '文件名（可选）', type: 'text', default: '', placeholder: '留空由 OneBot 处理' },
+  ], '#4f7cff'),
+  onebot('ob.send_video_msg', 'send_msg', '发送视频', CAT_MSG, '向私聊或群聊发送视频；使用 CQ 视频消息段，支持本地绝对路径或网络地址', [
+    { key: 'message_type', label: '消息类型', type: 'select', default: 'group', options: [
+      { label: '私聊', value: 'private' }, { label: '群聊', value: 'group' },
+    ] },
+    { key: 'user_id', label: 'QQ号（私聊时）', type: 'text', placeholder: '支持 {userId}' },
+    { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
+    { key: 'file', label: '视频地址', type: 'textarea', required: true, placeholder: '本地绝对路径、file URL 或 HTTP(S) URL' },
+    { key: 'cover', label: '封面地址（可选）', type: 'text', default: '', placeholder: '本地路径或 HTTP(S) URL' },
+  ], '#4f7cff'),
+  onebot('ob.send_card_msg', 'send_msg', '发送卡片', CAT_MSG, '向私聊或群聊发送 JSON 卡片消息；卡片 JSON 会包装为 CQ JSON 消息段', [
+    { key: 'message_type', label: '消息类型', type: 'select', default: 'group', options: [
+      { label: '私聊', value: 'private' }, { label: '群聊', value: 'group' },
+    ] },
+    { key: 'user_id', label: 'QQ号（私聊时）', type: 'text', placeholder: '支持 {userId}' },
+    { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
+    { key: 'card', label: '卡片 JSON', type: 'textarea', required: true, placeholder: '{"app":"com.tencent.multimsg","meta":{...}}' },
+  ], '#4f7cff'),
+  onebot('ob.send_custom_msg', 'send_msg', '发送自定义消息数据', CAT_MSG, '向私聊或群聊发送原始 CQ 码或 OneBot 消息段 JSON 数组，适用于高级自定义消息', [
+    { key: 'message_type', label: '消息类型', type: 'select', default: 'group', options: [
+      { label: '私聊', value: 'private' }, { label: '群聊', value: 'group' },
+    ] },
+    { key: 'user_id', label: 'QQ号（私聊时）', type: 'text', placeholder: '支持 {userId}' },
+    { key: 'group_id', label: '群号（群聊时）', type: 'text', placeholder: '支持 {groupId}' },
+    { key: 'message', label: '自定义消息数据', type: 'textarea', required: true, placeholder: '[{"type":"text","data":{"text":"你好"}},{"type":"at","data":{"qq":"123456"}}] 或 [CQ:at,qq=123456]你好' },
+  ], '#4f7cff'),
   onebot('ob.delete_msg', 'delete_msg', '撤回消息', CAT_MSG, '按消息ID撤回消息', [
     messageIdParam(),
   ], '#ff7a45'),
@@ -220,8 +272,16 @@ const onebotTiles: TileDef[] = [
   onebot('ob.get_image', 'get_image', '获取图片', CAT_FILE, '获取图片文件链接', [
     { key: 'file', label: '文件参数', type: 'text', required: true, placeholder: '图片文件名或URL' },
   ], '#9254de'),
-  onebot('ob.ocr_image', 'ocr_image', '图片OCR', CAT_FILE, '识别图片文字', [
-    { key: 'image', label: '图片', type: 'text', required: true, placeholder: '图片文件名或URL' },
+  onebot('ob.ocr_image', 'ocr_image', '图片OCR', CAT_FILE, '优先使用 OneBot OCR；失败时可选用兼容 OpenAI 视觉模型兜底识别', [
+    { key: 'image', label: '图片', type: 'text', required: true, placeholder: '公开可访问的图片 URL；OneBot 同时支持图片文件名' },
+    { key: 'aiFallback', label: 'AI OCR 兜底', type: 'select', default: 'off', options: [
+      { label: '关闭（仅 OneBot OCR）', value: 'off' },
+      { label: '开启（OneBot 失败时调用视觉 AI）', value: 'on' },
+    ], hint: '仅在 OneBot OCR 请求失败时使用；视觉模型需可访问图片 URL' },
+    { key: 'aiEndpoint', label: 'AI 服务地址', type: 'text', default: '', placeholder: 'https://api.example.com/v1/chat/completions' },
+    { key: 'aiApiKey', label: 'AI API 密钥', type: 'text', default: '', placeholder: '建议填写 {变量名}，避免直接保存密钥' },
+    { key: 'aiModel', label: '视觉模型名', type: 'text', default: '', placeholder: '如 gpt-4o-mini、qwen-vl-plus' },
+    { key: 'aiPrompt', label: 'OCR 提示词', type: 'textarea', default: '请识别图片中的全部可见文字，按原有阅读顺序输出纯文本。无法识别的内容不要猜测。', placeholder: '可自定义识别语言、表格还原等要求' },
   ], '#9254de'),
   onebot('ob.get_group_file_system_info', 'get_group_file_system_info', '群文件系统信息', CAT_FILE, '获取群文件系统信息', [
     groupIdParam(),
@@ -451,11 +511,281 @@ const TOOL_RESULT_PARAM: TileDef['params'][number] = {
   hint: '工具的运行结果（文本/JSON）存入该变量，后续步骤可用 {变量名} 引用；留空则仅输出到执行日志',
 }
 
-// ---------------- Koishi 信息 / 代码工具磁贴 ----------------
+// ---------------- Koishi 信息 / 代码工具 / 数据库 / 文件 / 命令 磁贴 ----------------
 const CAT_KOISHI = 'Koishi 信息'
 const CAT_TOOL = '代码工具'
+const CAT_NETWORK = '网络请求'
+const CAT_DB = '数据库'
+const CAT_FS = '文件操作'
+const CAT_CMD = 'Koishi 扩展'
+const CAT_AI = 'AI 服务'
 
 const toolTiles: TileDef[] = [
+  {
+    id: 'sys.http_get',
+    label: '网络请求 GET',
+    category: CAT_NETWORK,
+    kind: 'action',
+    description: '使用 Node.js 原生 fetch 发起 GET 请求，支持请求头、查询参数和结果变量保存；仅允许 http/https，响应体上限为 4 MiB',
+    color: '#1677ff',
+    params: [
+      { key: 'url', label: 'URL', type: 'text', required: true, placeholder: 'https://example.com/api/{id}' },
+      { key: 'headers', label: '请求头 JSON', type: 'textarea', default: '{}', placeholder: '{"Authorization":"Bearer token","Accept":"application/json"}' },
+      { key: 'query', label: '查询参数 JSON', type: 'textarea', default: '{}', placeholder: '{"page":1,"keyword":"koishi"}' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { url: 'https://example.com/api', headers: '{"Accept":"application/json"}', query: '{"page":1}' },
+    exampleNote: '请求 JSON 接口并将成功响应保存到变量，后续条件可按 JSON 路径取值',
+  },
+  {
+    id: 'sys.http_post',
+    label: '网络请求 POST',
+    category: CAT_NETWORK,
+    kind: 'action',
+    description: '使用 Node.js 原生 fetch 发起 POST 请求，支持 JSON、文本和表单请求体；仅允许 http/https，响应体上限为 4 MiB',
+    color: '#1677ff',
+    params: [
+      { key: 'url', label: 'URL', type: 'text', required: true, placeholder: 'https://example.com/api' },
+      { key: 'headers', label: '请求头 JSON', type: 'textarea', default: '{}', placeholder: '{"Authorization":"Bearer token"}' },
+      { key: 'body', label: '请求体', type: 'textarea', default: '', placeholder: '{"name":"Koishi"} 或普通文本' },
+      {
+        key: 'bodyType', label: '请求体类型', type: 'select', default: 'json', options: [
+          { label: 'JSON', value: 'json' }, { label: '文本', value: 'text' }, { label: '表单', value: 'form' },
+        ], hint: '表单类型请输入 JSON 对象，如 {"name":"Koishi","page":1}',
+      },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { url: 'https://example.com/api', body: '{"name":"Koishi"}', bodyType: 'json' },
+    exampleNote: '提交 JSON 数据并将成功响应保存到变量，后续条件可按 JSON 路径取值',
+  },
+
+  // ============ 数据库 ============
+  {
+    id: 'sys.db_tool',
+    label: '数据库操作',
+    category: CAT_DB,
+    kind: 'action',
+    description: '对 Koishi 已注册的数据表执行插入 / 更新 / 查询 / 删除（如本插件的 mywl_ftask、mywl_flog），支持条件与数量限制',
+    color: '#2f54eb',
+    params: [
+      {
+        key: 'op', label: '操作', type: 'select', default: 'query', options: [
+          { label: '查询记录（get）', value: 'query' }, { label: '插入记录（create）', value: 'create' },
+          { label: '更新记录（set）', value: 'update' }, { label: '删除记录（remove）', value: 'delete' },
+        ],
+      },
+      { key: 'table', label: '表名', type: 'text', required: true, placeholder: '如 mywl_ftask / mywl_flog' },
+      { key: 'data', label: '数据 JSON', type: 'textarea', default: '', placeholder: '插入/更新时填写的字段对象，如 {"name":"任务A"}' },
+      { key: 'where', label: '条件 JSON', type: 'textarea', default: '{}', placeholder: '查询/更新/删除的条件，如 {"trigger":"cron"}；留空表示匹配全部' },
+      { key: 'limit', label: '查询条数', type: 'number', default: 50, min: 1, max: 1000, hint: '仅「查询记录」生效' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { op: 'query', table: 'mywl_ftask', where: '{"enabled":true}', limit: 10 },
+    exampleNote: '示例：查询所有启用中的任务（返回数组可存入变量，再用条件判断按 JSON 路径取值）',
+    returns: R([
+      ['[i]', 'object', '查询结果第 i 条记录', '数据库返回'],
+      ['[i].id', 'number', '记录自增 ID', '数据库返回'],
+      ['_count', 'number', '删除记录时返回的受影响条数', '数据库返回'],
+      ['_inserted', 'object', '插入记录时返回的新记录（含 id）', '数据库返回'],
+      ['_updated', 'boolean', '更新记录是否成功（True/False）', '数据库返回'],
+    ]),
+  },
+
+  // ============ 文件操作 ============
+  {
+    id: 'sys.fs_write',
+    label: '写入文件',
+    category: CAT_FS,
+    kind: 'action',
+    description: '将文本内容写入文件（覆盖或追加）；路径相对于所选基础目录，禁止越出该目录（防越权）',
+    color: '#52c41a',
+    params: [
+      {
+        key: 'base', label: '基础目录', type: 'select', default: 'plugin', options: [
+          { label: '插件数据目录', value: 'plugin' }, { label: 'Koishi 数据目录', value: 'data' }, { label: '系统临时目录', value: 'temp' },
+        ],
+      },
+      { key: 'path', label: '文件路径', type: 'text', required: true, placeholder: '如 sub/demo.txt 或 demo.txt' },
+      {
+        key: 'mode', label: '写入方式', type: 'select', default: 'overwrite', options: [
+          { label: '覆盖（overwrite）', value: 'overwrite' }, { label: '追加（append）', value: 'append' },
+        ],
+      },
+      { key: 'content', label: '内容', type: 'textarea', required: true, placeholder: '要写入的内容，支持 {变量}' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { base: 'plugin', path: 'test/demo.txt', mode: 'overwrite', content: '你好，{userId}' },
+    exampleNote: '示例：在插件数据目录创建 test/demo.txt 并写入内容',
+  },
+  {
+    id: 'sys.fs_read',
+    label: '读取文件',
+    category: CAT_FS,
+    kind: 'action',
+    description: '读取文本文件内容（以 UTF-8 解码，超过 4 MiB 会报错），存入结果变量',
+    color: '#52c41a',
+    params: [
+      {
+        key: 'base', label: '基础目录', type: 'select', default: 'plugin', options: [
+          { label: '插件数据目录', value: 'plugin' }, { label: 'Koishi 数据目录', value: 'data' }, { label: '系统临时目录', value: 'temp' },
+        ],
+      },
+      { key: 'path', label: '文件路径', type: 'text', required: true, placeholder: '如 test/demo.txt' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { base: 'plugin', path: 'test/demo.txt' },
+    exampleNote: '示例：读取插件数据目录 test/demo.txt 的内容',
+  },
+  {
+    id: 'sys.fs_delete',
+    label: '删除文件',
+    category: CAT_FS,
+    kind: 'action',
+    description: '删除指定文件；文件不存在时可选择是否忽略',
+    color: '#52c41a',
+    params: [
+      {
+        key: 'base', label: '基础目录', type: 'select', default: 'plugin', options: [
+          { label: '插件数据目录', value: 'plugin' }, { label: 'Koishi 数据目录', value: 'data' }, { label: '系统临时目录', value: 'temp' },
+        ],
+      },
+      { key: 'path', label: '文件路径', type: 'text', required: true, placeholder: '如 test/demo.txt' },
+      { key: 'ignoreMissing', label: '文件不存在时忽略', type: 'boolean', default: true },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { base: 'plugin', path: 'test/demo.txt', ignoreMissing: true },
+    exampleNote: '示例：删除插件数据目录 test/demo.txt（不存在也不报错）',
+  },
+  {
+    id: 'sys.fs_mkdir',
+    label: '创建文件夹',
+    category: CAT_FS,
+    kind: 'action',
+    description: '在基础目录下创建文件夹，可自动递归创建多级目录；已存在时不会报错',
+    color: '#52c41a',
+    params: [
+      {
+        key: 'base', label: '基础目录', type: 'select', default: 'plugin', options: [
+          { label: '插件数据目录', value: 'plugin' }, { label: 'Koishi 数据目录', value: 'data' }, { label: '系统临时目录', value: 'temp' },
+        ],
+      },
+      { key: 'path', label: '文件夹路径', type: 'text', required: true, placeholder: '如 a/b/c' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { base: 'plugin', path: 'a/b/c' },
+    exampleNote: '示例：在插件数据目录递归创建 a/b/c 文件夹',
+  },
+  {
+    id: 'sys.fs_rmdir',
+    label: '删除文件夹',
+    category: CAT_FS,
+    kind: 'action',
+    description: '递归删除指定文件夹及其全部内容；不存在时忽略不报错',
+    color: '#52c41a',
+    params: [
+      {
+        key: 'base', label: '基础目录', type: 'select', default: 'plugin', options: [
+          { label: '插件数据目录', value: 'plugin' }, { label: 'Koishi 数据目录', value: 'data' }, { label: '系统临时目录', value: 'temp' },
+        ],
+      },
+      { key: 'path', label: '文件夹路径', type: 'text', required: true, placeholder: '如 a/b/c' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { base: 'plugin', path: 'a/b/c' },
+    exampleNote: '示例：递归删除插件数据目录下的 a/b/c（含其中所有文件）',
+  },
+  {
+    id: 'sys.fs_list',
+    label: '列出目录',
+    category: CAT_FS,
+    kind: 'action',
+    description: '列出基础目录下指定文件夹的直接子项（文件/文件夹），结果为 JSON 数组',
+    color: '#52c41a',
+    params: [
+      {
+        key: 'base', label: '基础目录', type: 'select', default: 'plugin', options: [
+          { label: '插件数据目录', value: 'plugin' }, { label: 'Koishi 数据目录', value: 'data' }, { label: '系统临时目录', value: 'temp' },
+        ],
+      },
+      { key: 'path', label: '文件夹路径', type: 'text', default: '', placeholder: '留空表示列出基础目录本身' },
+      TOOL_RESULT_PARAM,
+    ],
+    examples: { base: 'plugin', path: '' },
+    exampleNote: '示例：列出插件数据目录下的直接子项',
+    returns: R([
+      ['[i]', 'object', '目录项第 i 个', '文件系统'],
+      ['[i].name', 'string', '文件名 / 文件夹名', '文件系统'],
+      ['[i].type', 'string', '类型：file（文件）/ dir（文件夹）', '文件系统'],
+    ]),
+  },
+
+  // ============ Koishi 扩展 ============
+  {
+    id: 'sys.command_invoke',
+    label: '触发已有命令',
+    category: CAT_CMD,
+    kind: 'action',
+    description: '直接调用已注册的 Koishi 命令；适合复用其他插件或本插件已注册命令的业务逻辑，不会发送聊天消息',
+    color: '#eb2f96',
+    params: [
+      { key: 'command', label: '已有命令', type: 'select', required: true, dynamicOptions: 'commands', options: [], hint: '列表来自当前 Koishi 已注册命令；未显示的动态命令可在下方手动填写' },
+      { key: 'commandCustom', label: '手动命令名（可选）', type: 'text', default: '', placeholder: '填写后优先于上方选择；如 weather（无需 /）' },
+      { key: 'arguments', label: '命令参数', type: 'textarea', default: '', placeholder: '如 北京 --detail；支持 {变量}' },
+      { key: 'resultVar', label: '结果保存变量', type: 'text', default: '', placeholder: '如 commandResult；留空不保存' },
+    ],
+    examples: { command: 'help', arguments: 'weather' },
+    exampleNote: '示例：调用已有的 help 命令并将返回文本保存到变量',
+  },
+  {
+    id: 'sys.ai_chat',
+    label: 'AI 对话请求',
+    category: CAT_AI,
+    kind: 'action',
+    description: '调用兼容 OpenAI Chat Completions 的 AI 服务，可用于文本生成、总结、翻译、分类与图片 OCR 结果理解；建议通过任务变量传入密钥；密钥不会写入执行日志',
+    color: '#722ed1',
+    params: [
+      { key: 'endpoint', label: '服务地址', type: 'text', required: true, placeholder: 'https://api.example.com/v1/chat/completions' },
+      { key: 'apiKey', label: 'API 密钥', type: 'text', required: true, placeholder: '仅用于本次请求，日志会脱敏' },
+      { key: 'model', label: '模型名', type: 'text', required: true, placeholder: '如 gpt-4o-mini / qwen-plus' },
+      { key: 'system', label: '系统提示词（可选）', type: 'textarea', default: '', placeholder: '如：你是一个严谨的文字识别校对助手' },
+      { key: 'prompt', label: '用户提示词', type: 'textarea', required: true, placeholder: '如：请整理以下 OCR 结果：{ocrResult}' },
+      { key: 'temperature', label: '随机性', type: 'number', default: 0.7, min: 0, max: 2 },
+      { key: 'maxTokens', label: '最大输出 Token（可选）', type: 'number', default: 0, min: 0, max: 32768 },
+      TOOL_RESULT_PARAM,
+    ],
+    returns: R([
+      ['content', 'string', 'AI 回复的文本内容', 'Chat Completions choices[0].message.content'],
+      ['model', 'string', '实际使用的模型名', 'Chat Completions model'],
+      ['usage.prompt_tokens', 'number', '输入 Token 数', 'Chat Completions usage'],
+      ['usage.completion_tokens', 'number', '输出 Token 数', 'Chat Completions usage'],
+      ['usage.total_tokens', 'number', '总 Token 数', 'Chat Completions usage'],
+      ['raw', 'object', 'AI 服务原始 JSON 响应', 'Chat Completions 响应'],
+    ]),
+    examples: { endpoint: 'https://api.example.com/v1/chat/completions', model: 'gpt-4o-mini', system: '你是文本整理助手。', prompt: '请简要总结：{ocrResult}', temperature: 0.3 },
+    exampleNote: '先用「图片OCR」保存结果到 ocrResult，再将 {ocrResult} 交给 AI 校对或总结',
+  },
+  {
+    id: 'sys.command',
+    label: '注册自定义命令',
+    category: CAT_CMD,
+    kind: 'action',
+    description: '注册一条 Koishi 命令；用户输入该命令时执行下方「命令回调」子磁贴，回调中可使用 {cmdContent}、{cmdArgs}、{userId}、{groupId} 等变量',
+    color: '#eb2f96',
+    params: [
+      { key: 'command', label: '命令名', type: 'text', required: true, placeholder: '如 weather（触发 /weather）' },
+      { key: 'description', label: '命令描述', type: 'text', default: '', placeholder: '控制台与帮助中展示的说明' },
+      { key: 'aliases', label: '别名（逗号分隔）', type: 'text', default: '', placeholder: '如 tq,天気（无需斜杠）' },
+      {
+        key: 'argType', label: '参数获取', type: 'select', default: 'open', options: [
+          { label: '开放模式（全部参数进 cmdContent）', value: 'open' }, { label: '声明参数（按 usage 解析，args 数组进 cmdArgs）', value: 'declared' },
+        ], hint: '开放模式忽略 usage，直接提供命令后剩余文本',
+      },
+      { key: 'usage', label: '参数声明（声明模式）', type: 'text', default: '', placeholder: '如 <content:string> [count:number]' },
+    ],
+    examples: { command: 'weather', description: '查询城市天气', aliases: 'tq', argType: 'open' },
+    exampleNote: '示例：注册 /weather 命令，在下方回调磁贴中实现查询逻辑',
+  },
+
   {
     id: 'sys.koishi_status',
     label: 'Koishi 状态',
@@ -772,7 +1102,7 @@ export const TILE_MAP: Record<string, TileDef> = Object.fromEntries(TILES.map((t
 export interface TileCategory { key: string, label: string, kind: 'onebot' | 'system', tiles: TileDef[] }
 
 export const ONEBOT_CATEGORIES: TileCategory[] = [
-  [CAT_MSG, '消息操作', '#4f7cff', ['ob.send_private_msg', 'ob.send_group_msg', 'ob.send_msg', 'ob.delete_msg', 'ob.get_msg', 'ob.get_forward_msg', 'ob.send_group_forward_msg', 'ob.send_group_sign']],
+  [CAT_MSG, '消息操作', '#4f7cff', ['ob.send_private_msg', 'ob.send_group_msg', 'ob.send_msg', 'ob.send_image_msg', 'ob.send_audio_msg', 'ob.send_file_msg', 'ob.send_video_msg', 'ob.send_card_msg', 'ob.send_custom_msg', 'ob.delete_msg', 'ob.get_msg', 'ob.get_forward_msg', 'ob.send_group_forward_msg', 'ob.send_group_sign']],
   [CAT_GROUP, '群聊操作', '#ff7a45', ['ob.set_group_kick', 'ob.set_group_ban', 'ob.set_group_anonymous_ban', 'ob.set_group_whole_ban', 'ob.set_group_admin', 'ob.set_group_anonymous', 'ob.set_group_card', 'ob.set_group_name', 'ob.set_group_special_title', 'ob.set_group_leave', 'ob.set_group_portrait', 'ob.set_essence_msg', 'ob.delete_essence_msg']],
   [CAT_FRIEND, '好友与请求', '#b37feb', ['ob.send_like', 'ob.set_friend_add_request', 'ob.set_group_add_request']],
   [CAT_QUERY, '信息查询', '#36cfc9', ['ob.get_login_info', 'ob.get_stranger_info', 'ob.get_friend_list', 'ob.get_group_info', 'ob.get_group_list', 'ob.get_group_member_info', 'ob.get_group_member_list', 'ob.get_group_honor_info', 'ob.get_group_msg_history', 'ob.get_cookies', 'ob.get_csrf_token', 'ob.get_credentials']],
@@ -808,6 +1138,8 @@ export const COMPARE_OPS: { value: string, label: string }[] = [
   { value: '<=', label: '<= 小于等于' },
   { value: 'contains', label: '包含' },
   { value: 'notContains', label: '不包含' },
+  { value: 'regex', label: '正则匹配' },
+  { value: 'notRegex', label: '正则不匹配' },
   { value: 'isEmpty', label: '为空' },
   { value: 'notEmpty', label: '不为空' },
 ]

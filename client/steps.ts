@@ -10,6 +10,8 @@ export interface TileParam {
   placeholder?: string
   hint?: string
   options?: { label: string, value: string }[]
+  dynamicOptions?: 'commands'
+  dynamicOptions?: 'commands'
   min?: number
   max?: number
 }
@@ -547,6 +549,8 @@ export const COMPARE_OPS: { value: string, label: string }[] = [
   { value: '<=', label: '<= 小于等于' },
   { value: 'contains', label: '包含' },
   { value: 'notContains', label: '不包含' },
+  { value: 'regex', label: '正则匹配' },
+  { value: 'notRegex', label: '正则不匹配' },
   { value: 'isEmpty', label: '为空' },
   { value: 'notEmpty', label: '不为空' },
 ]

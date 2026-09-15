@@ -4,6 +4,7 @@ import type { PluginConfig } from './config'
 import { initModels, Store } from './store'
 import { Scheduler } from './scheduler'
 import { applyWebUI } from './webui'
+import { disposeRegisteredCommands } from './engine'
 import { logger } from './utils'
 
 export { Config, name } from './config'
@@ -38,6 +39,7 @@ export function apply(ctx: Context, config: PluginConfig) {
   })
 
   ctx.on('dispose', () => {
+    disposeRegisteredCommands(ctx)
     scheduler.dispose()
   })
 

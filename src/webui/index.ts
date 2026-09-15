@@ -41,6 +41,24 @@ async function validateTask(svc: { store: Store }, data: any): Promise<string[]>
   return errors
 }
 
+function commandOptions(ctx: Context): { label: string, value: string, description?: string }[] {
+  const commander: any = (ctx as any).$commander
+  const entries = commander?.commands
+  const list = entries instanceof Map ? [...entries.values()] : Array.isArray(entries) ? entries : []
+  const seen = new Set<string>()
+  return list
+    .map((command: any) => ({
+      value: String(command?.name || '').trim(),
+      description: String(command?.description || '').trim() || undefined,
+    }))
+    .filter((command) => command.value && !seen.has(command.value) && !!seen.add(command.value))
+    .sort((a, b) => a.value.localeCompare(b.value))
+    .map((command) => ({
+      ...command,
+      label: command.description ? `/${command.value} — ${command.description}` : `/${command.value}`,
+    }))
+}
+
 export async function buildSnapshot(ctx: Context, store: Store, scheduler: Scheduler): Promise<Snapshot> {
   const [tasks, logs, stats] = await Promise.all([
     store.taskList(),
@@ -55,6 +73,7 @@ export async function buildSnapshot(ctx: Context, store: Store, scheduler: Sched
     logs: logs.map(({ detail, ...rest }) => rest as any),
     tiles: TILES,
     events: EVENT_OPTIONS,
+    commands: commandOptions(ctx),
     running,
     stats: {
       totalTasks: tasks.length,
